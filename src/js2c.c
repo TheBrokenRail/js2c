@@ -39,8 +39,7 @@
 
 #include <string.h>  // strlen(), memcmp()
 
-int strend(const char *s, const char *t)
-{
+int strend(const char *s, const char *t) {
     size_t ls = strlen(s); // find length of s
     size_t lt = strlen(t); // find length of t
     if (ls >= lt)  // check if t can fit in s
@@ -70,8 +69,7 @@ static FILE *outfile;
 static BOOL byte_swap;
 
 void namelist_add(namelist_t *lp, const char *name, const char *short_name,
-                  int flags)
-{
+                  int flags) {
     namelist_entry_t *e;
     if (lp->count == lp->size) {
         size_t newsize = lp->size + (lp->size >> 1) + 4;
@@ -90,8 +88,7 @@ void namelist_add(namelist_t *lp, const char *name, const char *short_name,
     e->flags = flags;
 }
 
-void namelist_free(namelist_t *lp)
-{
+void namelist_free(namelist_t *lp) {
     while (lp->count > 0) {
         namelist_entry_t *e = &lp->array[--lp->count];
         free(e->name);
@@ -102,10 +99,9 @@ void namelist_free(namelist_t *lp)
     lp->size = 0;
 }
 
-namelist_entry_t *namelist_find(namelist_t *lp, const char *name)
-{
+namelist_entry_t *namelist_find(namelist_t *lp, const char *name) {
     int i;
-    for(i = 0; i < lp->count; i++) {
+    for (i = 0; i < lp->count; i++) {
         namelist_entry_t *e = &lp->array[i];
         if (!strcmp(e->name, name))
             return e;
@@ -115,17 +111,15 @@ namelist_entry_t *namelist_find(namelist_t *lp, const char *name)
 
 static int file_num = 0;
 
-static void get_c_name(char **buf)
-{
+static void get_c_name(char **buf) {
     asprintf(buf, "__js2c_internal_%i", file_num);
     file_num++;
 }
 
-static void dump_hex(FILE *f, const uint8_t *buf, size_t len)
-{
+static void dump_hex(FILE *f, const uint8_t *buf, size_t len) {
     size_t i, col;
     col = 0;
-    for(i = 0; i < len; i++) {
+    for (i = 0; i < len; i++) {
         fprintf(f, " 0x%02x,", buf[i]);
         if (++col == 8) {
             fprintf(f, "\n");
@@ -138,8 +132,7 @@ static void dump_hex(FILE *f, const uint8_t *buf, size_t len)
 
 static void output_object_code(JSContext *ctx,
                                FILE *fo, JSValueConst obj, const char *c_name,
-                               BOOL load_only)
-{
+                               BOOL load_only) {
     uint8_t *out_buf;
     size_t out_buf_len;
     int flags;
@@ -164,15 +157,13 @@ static void output_object_code(JSContext *ctx,
     js_free(ctx, out_buf);
 }
 
-static int js_module_dummy_init(JSContext *ctx, JSModuleDef *m)
-{
+static int js_module_dummy_init(JSContext *ctx, JSModuleDef *m) {
     /* should never be called when compiling JS code */
     abort();
 }
 
 JSModuleDef *jsc_module_loader(JSContext *ctx,
-                              const char *module_name, void *opaque)
-{
+                              const char *module_name, void *opaque) {
     JSModuleDef *m;
     namelist_entry_t *e;
 
@@ -218,8 +209,7 @@ JSModuleDef *jsc_module_loader(JSContext *ctx,
 
 static void compile_file(JSContext *ctx, FILE *fo,
                          const char *filename,
-                         int module)
-{
+                         int module) {
     uint8_t *buf;
     char *c_name;
     int eval_flags;
@@ -254,9 +244,11 @@ static void compile_file(JSContext *ctx, FILE *fo,
 static const char init_c_header[] =
     "#include \"quickjs.h\"\n"
     "#include <inttypes.h>\n"
+    "\n"
     "extern void js_std_init(JSContext *);\n"
     "extern void js_std_eval_binary(JSContext *, const uint8_t *, size_t, int);\n"
     "extern void js_std_dump_error(JSContext *);\n"
+    "\n"
     "static JSContext *ctx;\n"
     "static JSRuntime *rt;\n"
     "\n"
@@ -287,13 +279,14 @@ static const char init_c_template4[] =
     "}\n"
     ;
 
-void help(void)
-{
+void help(void) {
     printf("QuickJS version " CONFIG_VERSION "\n"
            "usage: js2c [options] [files]\n"
            "\n"
            "options are:\n"
-           "-e          output in a C file (default = executable output)\n"
+           "-e          output in a C file (required header files are located in "CONFIG_INCLUDE_DIR")\n"
+           "-c          output in an object file\n"
+           "            when generating a C file or an object file, manual linking with libjs2c is required\n"
            "-o output   set the output filename\n"
            "-N cname    set the name to be used in init_<>(), and cleanup_<>() methods (default = \"js_library\")\n"
            "-m          compile as Javascript module (default=autodetect)\n"
@@ -305,8 +298,7 @@ void help(void)
 
 #if defined(CONFIG_CC) && !defined(_WIN32)
 
-int exec_cmd(char **argv)
-{
+int exec_cmd(char **argv) {
     int pid, status, ret;
 
     pid = fork();
@@ -315,7 +307,7 @@ int exec_cmd(char **argv)
         exit(1);
     } 
 
-    for(;;) {
+    for (;;) {
         ret = waitpid(pid, &status, 0);
         if (ret == pid && WIFEXITED(status))
             break;
@@ -324,8 +316,7 @@ int exec_cmd(char **argv)
 }
 
 static int output_executable(const char *out_filename, const char *cfilename,
-                             BOOL use_lto, BOOL verbose, const char *exename)
-{
+                             BOOL use_lto, BOOL verbose, const char *exename, int object) {
     const char *argv[64];
     const char **arg;
     char exe_dir[1024], *p, *buf, *inc_dir, *lib_dir, *libjsname;
@@ -347,13 +338,18 @@ static int output_executable(const char *out_filename, const char *cfilename,
         inc_dir = exe_dir;
         lib_dir = exe_dir;
     } else {
-        asprintf(&inc_dir, "%s/include/js2c", CONFIG_PREFIX);
-        asprintf(&lib_dir, "%s/lib", CONFIG_PREFIX);
+        inc_dir = CONFIG_INCLUDE_DIR;
+        lib_dir = CONFIG_LIB_DIR;
     }
     
     arg = argv;
     *arg++ = CONFIG_CC;
-    *arg++ = "-shared";
+    if (object) {
+        *arg++ = "-c";
+    } else {
+        *arg++ = "-shared";
+        *arg++ = "-fPIC";
+    }
     *arg++ = "-O2";
     /* XXX: use the executable path to find the includes files and
        libraries */
@@ -366,14 +362,12 @@ static int output_executable(const char *out_filename, const char *cfilename,
     *arg++ = cfilename;
     *arg++ = "-L";
     *arg++ = lib_dir;
-    *arg++ = "-l";
-    *arg++ = "js2c";
+    *arg++ = "-ljs2c";
     *arg++ = "-lm";
-    *arg++ = "-fPIC";
     *arg = NULL;
     
     if (verbose) {
-        for(arg = argv; *arg != NULL; arg++)
+        for (arg = argv; *arg != NULL; arg++)
             printf("%s ", *arg);
         printf("\n");
     }
@@ -384,8 +378,7 @@ static int output_executable(const char *out_filename, const char *cfilename,
 }
 #else
 static int output_executable(const char *out_filename, const char *cfilename,
-                             BOOL use_lto, BOOL verbose, const char *exename)
-{
+                             BOOL use_lto, BOOL verbose, const char *exename) {
     fprintf(stderr, "Executable output is not supported for this target\n");
     exit(1);
     return 0;
@@ -394,12 +387,12 @@ static int output_executable(const char *out_filename, const char *cfilename,
 
 
 typedef enum {
-    OUTPUT_C_MAIN,
+    OUTPUT_C,
     OUTPUT_EXECUTABLE,
+    OUTPUT_OBJECT
 } OutputTypeEnum;
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     int c, i, verbose;
     const char *out_filename, *cname;
     char cfilename[1024];
@@ -420,7 +413,7 @@ int main(int argc, char **argv)
     verbose = 0;
     use_lto = FALSE;
 
-    for(;;) {
+    for (;;) {
         c = getopt(argc, argv, "ho:cN:f:mxevM:");
         if (c == -1)
             break;
@@ -431,7 +424,10 @@ int main(int argc, char **argv)
             out_filename = optarg;
             break;
         case 'e':
-            output_type = OUTPUT_C_MAIN;
+            output_type = OUTPUT_C;
+            break;
+        case 'c':
+            output_type = OUTPUT_OBJECT;
             break;
         case 'N':
             cname = optarg;
@@ -465,13 +461,15 @@ int main(int argc, char **argv)
 
     if (!out_filename) {
         if (output_type == OUTPUT_EXECUTABLE) {
-            out_filename = "a.so";
+            out_filename = "libout.so";
+        } else if (output_type == OUTPUT_OBJECT) {
+            out_filename = "out.o";
         } else {
             out_filename = "out.c";
         }
     }
 
-    if (output_type == OUTPUT_EXECUTABLE) {
+    if (output_type != OUTPUT_C) {
 #if defined(_WIN32) || defined(__ANDROID__)
         /* XXX: find a /tmp directory ? */
         snprintf(cfilename, sizeof(cfilename), "out%d.c", getpid());
@@ -503,7 +501,7 @@ int main(int argc, char **argv)
     
     fprintf(fo, init_c_header);
 
-    for(i = optind; i < argc; i++) {
+    for (i = optind; i < argc; i++) {
         const char *filename = argv[i];
         if (strend(filename, ".c")) {
             in_fo = fopen(filename, "r");
@@ -525,7 +523,7 @@ int main(int argc, char **argv)
     fputs(cname, fo);
     fputs(init_c_template2, fo);
 
-    for(i = 0; i < init_module_list.count; i++) {
+    for (i = 0; i < init_module_list.count; i++) {
         namelist_entry_t *e = &init_module_list.array[i];
         /* initialize the static C modules */
         
@@ -537,7 +535,7 @@ int main(int argc, char **argv)
                 e->short_name, e->short_name, e->name);
     }
 
-    for(i = 0; i < cname_list.count; i++) {
+    for (i = 0; i < cname_list.count; i++) {
         namelist_entry_t *e = &cname_list.array[i];
         fprintf(fo, "  js_std_eval_binary(ctx, %s, %s_size, %s);\n",
                 e->name, e->name,
@@ -552,12 +550,16 @@ int main(int argc, char **argv)
 
     fclose(fo);
 
+    int rc = 0;
     if (output_type == OUTPUT_EXECUTABLE) {
-        return output_executable(out_filename, cfilename, use_lto, verbose,
-                                 argv[0]);
+        rc = output_executable(out_filename, cfilename, use_lto, verbose,
+                                 argv[0], 0);
+    } else if (output_type == OUTPUT_OBJECT) {
+        rc = output_executable(out_filename, cfilename, use_lto, verbose,
+                                 argv[0], 1);
     }
     namelist_free(&cname_list);
     namelist_free(&cmodule_list);
     namelist_free(&init_module_list);
-    return 0;
+    return rc;
 }

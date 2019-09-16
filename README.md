@@ -13,10 +13,30 @@ make
 
 ## Usage
 
+### Shared Library
+
 ```bash
 $ js2c -N fib -o example/libfib.so example/fib.js example/fib.c
-$ clang -Lexample -o example/fib example/test.c -lfib
-$ LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:$(pwd)/example" example/fib 10 # example/libfib.so is not in your LD_LIBRARY_PATH by default.
+$ clang -Lexample -o example/fib example/test.c -lfib -Wl,-rpath,example
+$ example/fib 10
+Result: 55
+```
+
+### C File
+
+```bash
+$ js2c -e -N fib -o example/libfib.c example/fib.js example/fib.c
+$ clang -I<prefix>/include/js2c -o example/fib example/libfib.c example/test.c -ljs2c
+$ example/fib 10
+Result: 55
+```
+
+### Object File
+
+```bash
+$ js2c -c -N fib -o example/libfib.o example/fib.js example/fib.c
+$ clang -o example/fib example/libfib.o example/test.c -ljs2c
+$ example/fib 10
 Result: 55
 ```
 

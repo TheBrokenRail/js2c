@@ -1,4 +1,4 @@
 /quickjs
 /build
-/example/libfib.so
+/example/lib*
 /example/fib
