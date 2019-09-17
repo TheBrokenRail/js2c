@@ -40,6 +40,10 @@ $ example/fib 10
 Result: 55
 ```
 
+## Example
+
+There is an example projet in the ```example``` directory includng a Makefile.
+
 ## Header Files
 
 Header files are not automatically generated. You must make them yourself. An example of a header file is in the ```example``` directory. The program name to be used in your init_<>(), and cleanup_<>() methods is by default ```js_library``` but can be overriden by the -N argument.
